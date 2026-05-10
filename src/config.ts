@@ -1,6 +1,11 @@
 import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
+import "dotenv/config"
+import process from "node:process";
+
+
+const connection = process.env.DATABASE_URL;
 
 
 export type Config = {
@@ -14,12 +19,11 @@ type CommandsRegistry = Record<string, CommandHandler>
 
 
 export function handlerLogin(cmdName: string, ...args: string[]) {
-	if (args.length === 0) {
+	if (!args || args.length === 0) {
 		throw new Error(`No args provided i.e. no username provided`);
 	}
 	setUser(args[0]);
 	console.log(`User has been set with the value - ${args[0]}`);
-	console.log(readConfig());
 }
 
 export function registerCommand(registry: CommandsRegistry, cmdName: string, handler: CommandHandler) {
@@ -41,12 +45,12 @@ function setUser(name: string) {
 		const newConfig = {dbUrl: data.dbUrl, currentUserName: name};
 		writeConfig(newConfig);
 	} else {
-		const newConfig = {dbUrl: "postgres://example", currentUserName: name};
+		const newConfig = {dbUrl: connection, currentUserName: name};
 		writeConfig(newConfig);
 	}	
 }
 
-function readConfig():Config | undefined {
+export function readConfig():Config | undefined {
 	const configPath = getConfigFilePath();
 	const rawData = fs.readFileSync(configPath, 'utf-8');
 	const data = JSON.parse(rawData);
