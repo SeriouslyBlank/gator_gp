@@ -3,6 +3,7 @@ import os from "node:os";
 import path from "node:path";
 import "dotenv/config"
 import process from "node:process";
+import { createUser, getUser } from "./lib/db/queries/users";
 
 
 const connection = process.env.DATABASE_URL;
@@ -13,24 +14,50 @@ export type Config = {
 	currentUserName: string;
 }
 
-type CommandHandler = (cmdName: string, ... args: string[]) => void;
+type CommandHandler = (cmdName: string, ... args: string[]) => Promise<void>;
 
-type CommandsRegistry = Record<string, CommandHandler>
+export type CommandsRegistry = Record<string, CommandHandler>
 
 
-export function handlerLogin(cmdName: string, ...args: string[]) {
+export async function handlerLogin(cmdName: string, ...args: string[]) {
 	if (!args || args.length === 0) {
-		throw new Error(`No args provided i.e. no username provided`);
+		throw new Error(`No args provided i.e. no username provided \n Command usage:- npm run start login <user-name>`);
 	}
-	setUser(args[0]);
-	console.log(`User has been set with the value - ${args[0]}`);
+	const userCheck = await getUser(args[0]);
+	if (userCheck) {
+		setUser(args[0]);
+		console.log(`User was set in config- ${args[0]}`);
+		process.exit(0);
+	} else {
+		throw new Error(`User doesn't exist in database`)	
+		process.exit(1);
+	}
 }
 
-export function registerCommand(registry: CommandsRegistry, cmdName: string, handler: CommandHandler) {
+
+export async function handlerRegister(cmdName: string, ...args: string[]){
+	if (!args || args.length === 0) {
+		throw new Error(`No name provided \n Command usage:- npm run start register <name>`)
+	}
+	const userCheck = await getUser(args[0]);
+
+	if (userCheck) {
+		throw new Error(`User already exists`)
+	} else {
+		const dataDb = await createUser(args[0]);
+		console.log(`User was created`)
+		console.log(dataDb);
+		setUser(args[0]);
+		console.log(`User was set in config`);
+		process.exit(0);
+	}
+}
+
+export async function registerCommand(registry: CommandsRegistry, cmdName: string, handler: CommandHandler) {
 	registry[cmdName] = handler;
 }
 
-export function runCommand(registry: CommandsRegistry, cmdName: string, ...args: string[]){
+export async function runCommand(registry: CommandsRegistry, cmdName: string, ...args: string[]){
 	const handler = registry[cmdName];
 	handler(cmdName, ...args);
 }
@@ -50,7 +77,7 @@ function setUser(name: string) {
 	}	
 }
 
-export function readConfig():Config | undefined {
+export function readConfig():Config{
 	const configPath = getConfigFilePath();
 	const rawData = fs.readFileSync(configPath, 'utf-8');
 	const data = JSON.parse(rawData);
@@ -58,8 +85,7 @@ export function readConfig():Config | undefined {
 		const newConfig = {dbUrl: data.dbUrl, currentUserName: data.currentUserName};
 		return newConfig;
 	} else {
-		console.log("not valid config")
-		return undefined;
+		throw new Error("invalid Config data");
 	}
 }
 
