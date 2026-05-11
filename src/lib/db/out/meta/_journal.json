@@ -8,6 +8,20 @@
       "when": 1778402646325,
       "tag": "0000_wakeful_william_stryker",
       "breakpoints": true
+    },
+    {
+      "idx": 1,
+      "version": "7",
+      "when": 1778486290005,
+      "tag": "0001_worthless_ben_urich",
+      "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "7",
+      "when": 1778489259001,
+      "tag": "0002_hesitant_iron_patriot",
+      "breakpoints": true
     }
   ]
 }

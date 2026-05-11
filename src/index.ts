@@ -1,5 +1,6 @@
-import { registerCommand, runCommand, handlerLogin, handlerRegister, handlerReset, handlerUsers, handlerAggregator } from "./config";
-import type {CommandsRegistry} from "./config"
+import { registerCommand, runCommand} from "./config";
+import { handlerAggregator, handlerLogin, handlerRegister, handlerReset, handlerUsers, handlerFeed } from "./commands";
+import type { CommandsRegistry } from "./types";
 import process from "node:process";
 
 
@@ -13,6 +14,7 @@ async function main() {
     await registerCommand(commandsRegistry, "reset", handlerReset);
     await registerCommand(commandsRegistry, "users", handlerUsers);
     await registerCommand(commandsRegistry, "agg", handlerAggregator);
+    await registerCommand(commandsRegistry, "addfeed", handlerFeed);
     const [cmd, ...args] = process.argv.slice(2);
     if (!commandsRegistry[cmd]) {
       console.error(`Command not found: ${cmd}`)

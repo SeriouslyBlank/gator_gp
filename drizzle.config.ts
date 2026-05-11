@@ -10,7 +10,7 @@ if (!config?.dbUrl || !config?.dbUrl.startsWith("postgres://")) {
 
 
 export default defineConfig({
-  schema: "src/schema.ts",
+  schema: "src/lib/db/schema.ts",
   out: "src/lib/db/out",
   dialect: "postgresql",
   dbCredentials: {
