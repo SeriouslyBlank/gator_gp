@@ -20,19 +20,17 @@ export type CommandsRegistry = Record<string, CommandHandler>
 
 
 
-export async function handlerUsers(cmdName: string, ...args: String[]) {
+export async function handlerUsers(cmdName: string, ...args: string[]) {
 	const result = await getUsers();
 	const config = readConfig();
 	if (result) {
 		result.forEach(item => {
-			if (item.name === config.currentUserName){
-				item.name = `${item.name} (current)`;
-			}
+			//is current will be the current user who is logged in
+			const isCurrent = item.name === config.currentUserName;
+			//display name is set to * name if iscurrent is false otherwise prints the current to console
+			const displayName = isCurrent ? `* ${item.name} (current)` : `* ${item.name}`;
+			console.log(displayName); 
 		});
-		result.forEach(item => {
-		console.log(`* ${item.name}`);
-		});
-		process.exit(0);
 	} else {
 		throw new Error(`fetching users from db failed`);
 	}
@@ -47,10 +45,8 @@ export async function handlerLogin(cmdName: string, ...args: string[]) {
 	if (userCheck) {
 		setUser(args[0]);
 		console.log(`User was set in config- ${args[0]}`);
-		process.exit(0);
 	} else {
 		throw new Error(`User doesn't exist in database`)	
-		process.exit(1);
 	}
 }
 
@@ -69,7 +65,6 @@ export async function handlerRegister(cmdName: string, ...args: string[]){
 		console.log(dataDb);
 		setUser(args[0]);
 		console.log(`User was set in config`);
-		process.exit(0);
 	}
 }
 
@@ -77,10 +72,8 @@ export async function handlerReset(cmdName: string, ...args: string[]) {
 	const result = await resetDb();
 	if (result) {
 		console.log(`Database entries were deleted`);
-		process.exit(0);
 	} else {
-		console.log(`Database entries were not deleted`);
-		process.exit(1);
+		throw new Error(`Database entries were not deleted`);
 	}
 }
 
@@ -91,7 +84,7 @@ export async function registerCommand(registry: CommandsRegistry, cmdName: strin
 
 export async function runCommand(registry: CommandsRegistry, cmdName: string, ...args: string[]){
 	const handler = registry[cmdName];
-	handler(cmdName, ...args);
+	await handler(cmdName, ...args);
 }
 
 
