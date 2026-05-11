@@ -3,7 +3,7 @@ import os from "node:os";
 import path from "node:path";
 import "dotenv/config"
 import process from "node:process";
-import { createUser, getUser } from "./lib/db/queries/users";
+import { createUser, getUser, resetDb, getUsers } from "./lib/db/queries/users";
 
 
 const connection = process.env.DATABASE_URL;
@@ -17,6 +17,26 @@ export type Config = {
 type CommandHandler = (cmdName: string, ... args: string[]) => Promise<void>;
 
 export type CommandsRegistry = Record<string, CommandHandler>
+
+
+
+export async function handlerUsers(cmdName: string, ...args: String[]) {
+	const result = await getUsers();
+	const config = readConfig();
+	if (result) {
+		result.forEach(item => {
+			if (item.name === config.currentUserName){
+				item.name = `${item.name} (current)`;
+			}
+		});
+		result.forEach(item => {
+		console.log(`* ${item.name}`);
+		});
+		process.exit(0);
+	} else {
+		throw new Error(`fetching users from db failed`);
+	}
+}
 
 
 export async function handlerLogin(cmdName: string, ...args: string[]) {
@@ -52,6 +72,18 @@ export async function handlerRegister(cmdName: string, ...args: string[]){
 		process.exit(0);
 	}
 }
+
+export async function handlerReset(cmdName: string, ...args: string[]) {
+	const result = await resetDb();
+	if (result) {
+		console.log(`Database entries were deleted`);
+		process.exit(0);
+	} else {
+		console.log(`Database entries were not deleted`);
+		process.exit(1);
+	}
+}
+
 
 export async function registerCommand(registry: CommandsRegistry, cmdName: string, handler: CommandHandler) {
 	registry[cmdName] = handler;
