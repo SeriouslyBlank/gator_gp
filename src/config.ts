@@ -4,7 +4,8 @@ import path from "node:path";
 import "dotenv/config"
 import process from "node:process";
 import { createUser, getUser, resetDb, getUsers } from "./lib/db/queries/users";
-
+import {XMLParser} from "fast-xml-parser";
+import { title } from "node:process";
 
 const connection = process.env.DATABASE_URL;
 
@@ -14,10 +15,33 @@ export type Config = {
 	currentUserName: string;
 }
 
+type RSSFeed = {
+  channel: {
+    title: string;
+    link: string;
+    description: string;
+    item: RSSItem[];
+  };
+};
+
+type RSSItem = {
+  title: string;
+  link: string;
+  description: string;
+  pubDate: string;
+};
+
+
 type CommandHandler = (cmdName: string, ... args: string[]) => Promise<void>;
 
 export type CommandsRegistry = Record<string, CommandHandler>
 
+
+
+export async function handlerAggregator(cmdName: string, ...args: string[]) {
+	const response = await fetchFeed("https://www.wagslane.dev/index.xml");
+	console.log(response);
+}
 
 
 export async function handlerUsers(cmdName: string, ...args: string[]) {
@@ -35,6 +59,8 @@ export async function handlerUsers(cmdName: string, ...args: string[]) {
 		throw new Error(`fetching users from db failed`);
 	}
 }
+
+
 
 
 export async function handlerLogin(cmdName: string, ...args: string[]) {
@@ -141,4 +167,56 @@ function validateConfig(rawConfig: any):rawConfig is Config {
 		throw new Error(`dbUrl a valid postgres link \n dbUrl:- \n ${rawConfig.dbUrl}`);
 	}
 	return true;
+}
+
+
+
+
+async function fetchFeed(feedURL: string) {
+	const response = await fetch(feedURL, {
+		method: "GET",
+		mode: "cors",
+		headers: {
+			"Accept": "application/xml",
+			"User-Agent": "gator_gp" 
+		}
+	});
+
+	const respTxt = await response.text();
+	const parser = new XMLParser({processEntities: false});
+	const jsonObj = parser.parse(respTxt);
+	let titleC, linkC, descriptionC = "";
+	let items:RSSItem[] = [];
+
+	if (jsonObj.rss.channel) {
+		titleC = jsonObj.rss.channel.title;
+		linkC = jsonObj.rss.channel.link;
+		descriptionC = jsonObj.rss.channel.description;
+		
+		if (jsonObj.rss.channel.item){
+			if (Array.isArray(jsonObj.rss.channel.item)){
+				jsonObj.rss.channel.item.forEach((item) => {
+					if (item.title && item.link && item.description && item.pubDate) {
+						const {guid, ...rest} = item;
+						items.push(rest)
+					}
+				})
+			} else {
+				items = jsonObj.rss.channel.item;
+			}
+		}
+
+	} else {
+		throw new Error(`No channel in jsonObj`)
+	}
+
+	const feed: RSSFeed = {channel: 
+		{title: titleC,
+			link: linkC,
+			description: descriptionC,
+			item: items
+	 	}
+	};
+
+	return feed;
 }
