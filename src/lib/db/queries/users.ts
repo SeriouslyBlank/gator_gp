@@ -24,3 +24,8 @@ export async function resetDb() {
 	await db.delete(users);
 	return true;
 }
+
+export async function getUserName(id:string) {
+	const [result] = await db.select({name: users.name}).from(users).where(eq(users.id,id));
+	return result;
+}

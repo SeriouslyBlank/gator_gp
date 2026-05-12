@@ -1,9 +1,10 @@
-import { createUser, getUser, resetDb, getUsers } from "./lib/db/queries/users";
+import { createUser, getUser, resetDb, getUsers, getUserName } from "./lib/db/queries/users";
 import {XMLParser} from "fast-xml-parser";
 import { readConfig, setUser } from "./config"; 
 import type {Feed, RSSFeed, RSSItem, User} from "./types";
 
-import { createFeed } from "./lib/db/queries/feeds";
+import { createFeed, selectFeeds } from "./lib/db/queries/feeds";
+import { feedFollowingForUser, insertFeedFollow } from "./lib/db/queries/feed_follows";
 
 
 export async function handlerFeed(cmdName: string, ...args: string[]) {
@@ -25,7 +26,7 @@ export async function handlerAggregator(cmdName: string, ...args: string[]) {
 export async function handlerUsers(cmdName: string, ...args: string[]) {
 	const result = await getUsers();
 	const config = readConfig();
-	if (result) {
+	if (result && result.length > 0) {
 		result.forEach(item => {
 			//is current will be the current user who is logged in
 			const isCurrent = item.name === config.currentUserName;
@@ -33,6 +34,8 @@ export async function handlerUsers(cmdName: string, ...args: string[]) {
 			const displayName = isCurrent ? `* ${item.name} (current)` : `* ${item.name}`;
 			console.log(displayName); 
 		});
+	} else if(result.length === 0) {
+		console.log(`No entries in users table`)
 	} else {
 		throw new Error(`fetching users from db failed`);
 	}
@@ -137,11 +140,81 @@ async function addFeed(name: string, url: string){
 	const config = readConfig();
 	const result = await createFeed(name, url, config.currentUserName);
 	console.log(result)
+	await handlerFollow("follow",url);
 
 }
 
 
 function printFeed(feed: Feed, user: User) {
-	console.log(`Feed ${feed}`)
-	console.log(`user ${user}`)
+	console.log(`Feed name:- ${feed.name}`)
+	console.log(`Feed link:- ${feed.url}`)
+	console.log(`Feed added by user:- ${user.name}`)
 }
+
+export async function handlerfeeds(){
+	const result = await selectFeeds();
+	if (result.length === 0) {
+		console.log(`No entries in feeds table`)
+	} else {
+		//since the sql function was modified the return type can be different depending on whether the url was provided or not, data will be of the {users, feeds} so just gonnna any to ignore lsp
+		result.forEach((item:any)=>{
+			const {users, feeds} = item;
+			printFeed(feeds, users);
+		});
+	}
+		
+}
+
+
+async function createFeedFollow(user_id: string, feed_id: string) {
+	const result = await insertFeedFollow(user_id, feed_id);
+	if (Array.isArray(result)){
+		console.log(`Following feed ${result[0].feed_name}`);
+		console.log(`For the user ${result[0].user_name}`);
+	} else {
+		console.log(result);
+	}
+}
+
+
+
+export async function handlerFollow(cmdName: string, ...args: string[]) {
+	if (!args[0] || args[0].length ===0) {
+		throw new Error(`url not provided \n Command Usage:- follow <feed-url>`)
+	}
+	const config = readConfig();
+	const user = await getUser(config.currentUserName);
+	if (!user) {
+		throw new Error(`Current user in Config not in users table, register the user first \n Command:- register <user-name>`)
+	}
+	const [feeds] = await selectFeeds(args[0]);
+	if (!feeds) {
+		throw new Error(`Feed not in Feeds table, use command addFeed to add \n addFeed auto adds the feed to follow feed as welll`)
+	} else {
+		// since feeds can be a joined result or just the feeds
+		if (!("users" in feeds)){
+			await createFeedFollow(user.id, feeds.id);
+
+		}
+	}
+}
+
+
+export async function getFeedFollowsForUser() {
+	const config = readConfig();
+	const user = await getUser(config.currentUserName);
+	if (!user) {
+		throw new Error(`Current user in Config not in users table, register the user first \n Command:- register <user-name>`)
+	} else {
+		const result = await feedFollowingForUser(user.id);
+		if (result.length === 0) {
+			console.log(`User is not following any feed`)
+		}else {
+			console.log(`Currently following feeds for the user-${user.name}`)
+			result.forEach((item)=> {
+				console.log(`${item.feed_name}`)
+			});
+		}		
+	}
+}
+
