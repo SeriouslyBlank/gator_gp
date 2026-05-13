@@ -1,20 +1,18 @@
 import { db } from "..";
 import { feeds, users} from "../schema";
 import { eq, lt, gte, ne } from 'drizzle-orm';
-import { getUser } from "./users";
 
 
 
-
-export async function createFeed(name: string, url: string, user_name: string) {
-	const u_db = await getUser(user_name);
-	const [newFeed] = await db.insert(feeds).values({name: name, url: url, user_id: u_db.id}).onConflictDoNothing({target: feeds.url}).returning();
+export async function createFeed(name: string, user: {id: string, createdAt:Date, updatedAt: Date, name: string}, url: string, ) {
+	const [newFeed] = await db.insert(feeds).values({name: name, url: url, user_id: user.id}).onConflictDoNothing({target: feeds.url}).returning();
 	if (!newFeed) {
 		return `${url} already in feeds db`
 	} else {
 		return newFeed;
 	}
 }
+
 
 export async function selectFeeds(url?:string){
 	if (url) {

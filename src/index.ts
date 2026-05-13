@@ -1,7 +1,8 @@
-import { runCommand} from "./config";
-import { handlerAggregator, handlerLogin, handlerRegister, handlerReset, handlerUsers, handlerFeed, handlerfeeds, handlerFollow, getFeedFollowsForUser } from "./commands";
+import { runCommand, registerCommand} from "./config";
+import { handlerAggregator, handlerLogin, handlerRegister, handlerReset, handlerUsers, handlerFeed, handlerfeeds, handlerFollow, handlerFollowing } from "./commands";
 import type { CommandsRegistry } from "./types";
-import process from "node:process";
+import process from "node:process"
+import { middlewareLoggedIn } from "./middleware";
 
 
 
@@ -9,17 +10,20 @@ async function main() {
   try {
     
     const commandsRegistry: CommandsRegistry = {
-      "login": handlerLogin,
-      "register": handlerRegister,
+      "login": handlerLogin,//logins in the user, provided that user has already registered
+      "register": handlerRegister, //registers the user and login as well
       "reset": handlerReset,
       "users": handlerUsers,
       "agg": handlerAggregator,
-      "addfeed": handlerFeed,
       "feeds": handlerfeeds,
-      "follow": handlerFollow,
-      "following": getFeedFollowsForUser,
-      
+
     };
+
+    await registerCommand(commandsRegistry, "addfeed", middlewareLoggedIn(handlerFeed));
+    await registerCommand(commandsRegistry, "follow", middlewareLoggedIn(handlerFollow));
+    await registerCommand(commandsRegistry, "following", middlewareLoggedIn(handlerFollowing));
+
+
 
     const [cmd, ...args] = process.argv.slice(2);
     if (!commandsRegistry[cmd]) {

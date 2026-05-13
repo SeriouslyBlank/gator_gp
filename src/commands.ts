@@ -7,13 +7,7 @@ import { createFeed, selectFeeds } from "./lib/db/queries/feeds";
 import { feedFollowingForUser, insertFeedFollow } from "./lib/db/queries/feed_follows";
 
 
-export async function handlerFeed(cmdName: string, ...args: string[]) {
-	if (!args[0] || !args[1]) {
-		throw new Error(`Feed name or url not provided \n Command usage:- addFeed <Feed-name> <link-to-feed>`);
-	}
-	await addFeed(args[0], args[1]);
 
-}
 
 
 
@@ -48,6 +42,7 @@ export async function handlerLogin(cmdName: string, ...args: string[]) {
 	if (!args || args.length === 0) {
 		throw new Error(`No args provided i.e. no username provided \n Command usage:- npm run start login <user-name>`);
 	}
+
 	const userCheck = await getUser(args[0]);
 	if (userCheck) {
 		setUser(args[0]);
@@ -62,8 +57,9 @@ export async function handlerRegister(cmdName: string, ...args: string[]){
 	if (!args || args.length === 0) {
 		throw new Error(`No name provided \n Command usage:- npm run start register <name>`)
 	}
-	const userCheck = await getUser(args[0]);
-
+	console.log("actually")
+	console.log(args)
+	const [userCheck] = await getUser(args[0]);
 	if (userCheck) {
 		throw new Error(`User already exists`)
 	} else {
@@ -136,11 +132,19 @@ async function fetchFeed(feedURL: string) {
 }
 
 
-async function addFeed(name: string, url: string){
-	const config = readConfig();
-	const result = await createFeed(name, url, config.currentUserName);
+
+export async function handlerFeed(cmdName: string, user: {id: string, createdAt:Date, updatedAt: Date, name: string},...args: string[]) {
+	if (!args[0] || !args[1]) {
+		throw new Error(`Feed name or url not provided \n Command usage:- addFeed <Feed-name> <link-to-feed>`);
+	}
+	await addFeed(args[0],user, args[1]);
+}
+
+
+async function addFeed(name: string,  user: {id: string, createdAt:Date, updatedAt: Date, name: string}, url:string){
+	const result = await createFeed(name, user, url);
 	console.log(result)
-	await handlerFollow("follow",url);
+	await handlerFollow("follow",user, url);
 
 }
 
@@ -178,14 +182,9 @@ async function createFeedFollow(user_id: string, feed_id: string) {
 
 
 
-export async function handlerFollow(cmdName: string, ...args: string[]) {
+export async function handlerFollow(cmdName: string, user: {id: string, createdAt:Date, updatedAt: Date, name: string},...args: string[]) {
 	if (!args[0] || args[0].length ===0) {
 		throw new Error(`url not provided \n Command Usage:- follow <feed-url>`)
-	}
-	const config = readConfig();
-	const user = await getUser(config.currentUserName);
-	if (!user) {
-		throw new Error(`Current user in Config not in users table, register the user first \n Command:- register <user-name>`)
 	}
 	const [feeds] = await selectFeeds(args[0]);
 	if (!feeds) {
@@ -194,27 +193,20 @@ export async function handlerFollow(cmdName: string, ...args: string[]) {
 		// since feeds can be a joined result or just the feeds
 		if (!("users" in feeds)){
 			await createFeedFollow(user.id, feeds.id);
-
 		}
 	}
 }
 
 
-export async function getFeedFollowsForUser() {
-	const config = readConfig();
-	const user = await getUser(config.currentUserName);
-	if (!user) {
-		throw new Error(`Current user in Config not in users table, register the user first \n Command:- register <user-name>`)
-	} else {
-		const result = await feedFollowingForUser(user.id);
-		if (result.length === 0) {
-			console.log(`User is not following any feed`)
-		}else {
-			console.log(`Currently following feeds for the user-${user.name}`)
-			result.forEach((item)=> {
-				console.log(`${item.feed_name}`)
-			});
-		}		
-	}
+export async function handlerFollowing(cmdName: string, user: {id: string, createdAt:Date, updatedAt: Date, name: string},...args: string[]) {
+	const result = await feedFollowingForUser(user.id);
+	if (result.length === 0) {
+		console.log(`User is not following any feed`)
+	}else {
+		console.log(`Currently following feeds for the user-${user.name}`)
+		result.forEach((item)=> {
+			console.log(`${item.feed_name}`)
+		});
+	}		
 }
 
