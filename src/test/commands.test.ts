@@ -62,6 +62,14 @@ describe(`Middleware Checks`, ()=> {
 		expect(output.error).toBe(true);
 	})
 
+	it.concurrent(`UNFOLLOW`, async () =>{
+		const output =await runCommand("npm run start unfollow");
+		expect(output.stderr).toContain(`${user.currentUserName} not found`)
+		expect(output.stderr).toContain('Register first');
+		expect(output.stderr).toContain('Error occured:');
+		expect(output.error).toBe(true);
+	})
+
 });
 
 
@@ -163,6 +171,27 @@ it(`FOLLOWING`, async () =>{
 	expect(output.stdout).toContain(`Currently following feeds for the user-${user2.currentUserName}`)
 });
 
+
+//checking unfollowing
+it(`UNFOLLOW`, async () =>{
+	const feed_name = `feed_name`
+	const feed_link = `feed_link`
+	const arg = `${feed_link}`
+	const cmd = "unfollow"
+	const output =await runCommand(`npm run start ${cmd} ${arg}`);
+	expect(output.stdout).toContain(`Not following ${feed_link} anymore`)
+});
+
+//checking unfollowing again
+it(`UNFOLLOW`, async () =>{
+	const feed_name = `feed_name`
+	const feed_link = `feed_link`
+	const arg = `${feed_link}`
+	const cmd = "unfollow"
+	const user2 = readConfig();
+	const output =await runCommand(`npm run start ${cmd} ${arg}`);
+	expect(output.stdout).toContain(`User ${user2.currentUserName} is not following feed- ${arg}`)
+});
 
 
 

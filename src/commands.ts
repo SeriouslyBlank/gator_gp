@@ -1,10 +1,10 @@
 import { createUser, getUser, resetDb, getUsers, getUserName } from "./lib/db/queries/users";
-import {XMLParser} from "fast-xml-parser";
+import {Expression, XMLParser} from "fast-xml-parser";
 import { readConfig, setUser } from "./config"; 
 import type {Feed, RSSFeed, RSSItem, User} from "./types";
 
 import { createFeed, selectFeeds } from "./lib/db/queries/feeds";
-import { feedFollowingForUser, insertFeedFollow } from "./lib/db/queries/feed_follows";
+import { feedFollowingForUser, feedUnfollow, insertFeedFollow } from "./lib/db/queries/feed_follows";
 
 
 
@@ -44,7 +44,7 @@ export async function handlerLogin(cmdName: string, ...args: string[]) {
 	}
 
 	const userCheck = await getUser(args[0]);
-	if (userCheck) {
+	if (!(userCheck.length === 0)) {
 		setUser(args[0]);
 		console.log(`User was set in config- ${args[0]}`);
 	} else {
@@ -206,5 +206,22 @@ export async function handlerFollowing(cmdName: string, user: {id: string, creat
 			console.log(`${item.feed_name}`)
 		});
 	}		
+}
+
+export async function handlerUnFollowing(cmdName: string, user: {id: string, createdAt:Date, updatedAt: Date, name: string},...args: string[]) {
+	if (!args[0] || args[0].length === 0) {
+		throw new Error(`No feed url provided \n Command usage:- following <feed-url>`)
+	}
+	const [feeds] =await selectFeeds(args[0]);
+	if (!feeds || "users" in feeds){
+		throw new Error(`Incorrect feed-url \n Check using the command feeds`)
+	}
+	const [result] = await feedUnfollow(feeds.id, user.id);
+	console.log(result)
+	if (!result) {
+		console.log(`User ${user.name} is not following feed- ${args[0]} \nTo check current following use command- following`)
+	} else {
+		console.log(`Not following ${args[0]} anymore`)
+	}
 }
 
