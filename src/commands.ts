@@ -57,17 +57,15 @@ export async function handlerRegister(cmdName: string, ...args: string[]){
 	if (!args || args.length === 0) {
 		throw new Error(`No name provided \n Command usage:- npm run start register <name>`)
 	}
-	console.log("actually")
-	console.log(args)
+	
 	const [userCheck] = await getUser(args[0]);
 	if (userCheck) {
-		throw new Error(`User already exists`)
+		throw new Error(`User ${args[0]} already exists`)
 	} else {
 		const dataDb = await createUser(args[0]);
-		console.log(`User was created`)
-		console.log(dataDb);
+		console.log(`User ${args[0]} was registered`)
 		setUser(args[0]);
-		console.log(`User was set in config`);
+		console.log(`User ${args[0]} was set in config`);
 	}
 }
 
@@ -155,7 +153,7 @@ function printFeed(feed: Feed, user: User) {
 	console.log(`Feed added by user:- ${user.name}`)
 }
 
-export async function handlerfeeds(){
+export async function handlerfeeds(cmdName: string, ...args: string[]){
 	const result = await selectFeeds();
 	if (result.length === 0) {
 		console.log(`No entries in feeds table`)
