@@ -138,7 +138,18 @@ it('command FEEDS', async() => {
 
 
 //checking addfeed
-it(`ADDFEED`, async () =>{
+it.concurrent(`ADDFEED`, async () =>{
+	const feed_name = `test_lorem_ipsum`
+	const feed_link = `https://lorem-rss.herokuapp.com/feed?unit=year&length=5`
+	const arg = `${feed_name} ${feed_link}`
+	const cmd = "addfeed"
+	const output =await runCommand(`npm run start ${cmd} ${arg}`);
+	expect(output.stdout).toContain(`Following feed ${feed_name}`)
+	expect(output.stdout).toContain(`For the user Blank`)
+});
+
+//checking addfeed
+it.concurrent(`ADDFEED`, async () =>{
 	const feed_name = `feed_name`
 	const feed_link = `feed_link`
 	const arg = `${feed_name} ${feed_link}`
@@ -193,6 +204,18 @@ it(`UNFOLLOW`, async () =>{
 	expect(output.stdout).toContain(`User ${user2.currentUserName} is not following feed- ${arg}`)
 });
 
+/*checking aggregator
+it(`AGG`, async () =>{
+	const feed_name = `test_lorem_ipsum`
+	const feed_link = `https://lorem-rss.herokuapp.com/feed?unit=year&length=5`
+	const arg = `10s`
+	const cmd = "agg"
+	const user2 = readConfig();
+	const output =await runCommand(`npm run start ${cmd} ${arg}`);
+	expect(output.stdout).toContain(`Collecting feeds every 10s`)
+	expect(output.stdout).toContain(`* Lorem ipsum 2026-01-01T00:00:00Z`)
+}, 30000);
+*/
 
 
 

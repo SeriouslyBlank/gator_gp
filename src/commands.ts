@@ -1,10 +1,10 @@
-import { createUser, getUser, resetDb, getUsers, getUserName } from "./lib/db/queries/users";
-import {Expression, XMLParser} from "fast-xml-parser";
+import { createUser, getUser, resetDb, getUsers } from "./lib/db/queries/users";
+import {XMLParser} from "fast-xml-parser";
 import { readConfig, setUser } from "./config"; 
 import type {Feed, RSSFeed, RSSItem, User} from "./types";
-
-import { createFeed, selectFeeds } from "./lib/db/queries/feeds";
+import { createFeed, getNextFeedToFetch, markFeedFetched, selectFeeds } from "./lib/db/queries/feeds";
 import { feedFollowingForUser, feedUnfollow, insertFeedFollow } from "./lib/db/queries/feed_follows";
+import process from "node:process";
 
 
 
@@ -12,9 +12,125 @@ import { feedFollowingForUser, feedUnfollow, insertFeedFollow } from "./lib/db/q
 
 
 export async function handlerAggregator(cmdName: string, ...args: string[]) {
-	const response = await fetchFeed("https://www.wagslane.dev/index.xml");
-	console.log(response);
+	if (!args || args.length === 0) {
+		throw new Error(`Valid time between request not provided- ${args} \n Command Usage-  agg  <time-between-request-in-ms/s/m/h>`)
+	}
+
+	const time_between_reqs =  parseDuration(args[0])
+
+	await scrapeFeeds().catch((error)=>{console.error(error)});
+	const interval = setInterval(async ()=> {
+		await scrapeFeeds().catch((error)=>{console.error(error)});
+	}, time_between_reqs)
+
+	await new Promise<void>((resolve) => {
+		process.on("SIGINT", () => {
+			console.log("Shutting down feed aggregator...");
+			clearInterval(interval);
+			resolve();
+		});
+	});
 }
+
+
+
+
+function parseDuration(durationStr: string)  {
+	const regex = /^(\d+)(ms|s|m|h)$/;
+	const match = durationStr.match(regex);
+	if (!match){
+		throw new Error(`valid time not provided,\n Valid Time- ms, s, m, h`)
+	}
+	const time = match[1];
+	const unit = match[2];
+
+	switch(unit) {
+		case "ms":
+			console.log(`Collecting feeds every ${time}ms`);
+			return Number(time);
+		case "s":
+			console.log(`Collecting feeds every ${time}s`);
+			return Number(time)*1000;
+		case "m":
+			console.log(`Collecting feeds every ${time}m0s`);
+			return Number(time)*1000*60;
+		case "h":
+			console.log(`Collecting feeds every ${time}hr0m0s`);
+			return Number(time)*1000*60*60;
+	}
+
+}
+
+
+async function fetchFeed(feedURL: string) {
+	const response = await fetch(feedURL, {
+		method: "GET",
+		mode: "cors",
+		headers: {
+			"Accept": "application/xml",
+			"User-Agent": "gator_gp" 
+		}
+	});
+
+	
+
+	if (!response.ok) {
+		console.log("ehh()")
+		throw new Error(`Failed to fetch the feed: ${response.status} ${response.statusText}`);
+	}
+
+	const respTxt = await response.text();
+	const parser = new XMLParser({processEntities: false});
+	const jsonObj = parser.parse(respTxt);
+	let titleC, linkC, descriptionC = "";
+	let items:RSSItem[] = [];
+
+	if (jsonObj.rss.channel) {
+		titleC = jsonObj.rss.channel.title;
+		linkC = jsonObj.rss.channel.link;
+		descriptionC = jsonObj.rss.channel.description;
+		
+		if (jsonObj.rss.channel.item){
+			if (Array.isArray(jsonObj.rss.channel.item)){
+				jsonObj.rss.channel.item.forEach((item : RSSItem & {guid: string;}) => {
+					if (item.title && item.link && item.description && item.pubDate) {
+						const {guid, ...rest} = item;
+						items.push(rest)
+					}
+				})
+			} else {
+				items = jsonObj.rss.channel.item;
+			}
+		}
+
+	} else {
+		throw new Error(`No channel in jsonObj`)
+	}
+
+	const feed: RSSFeed = {channel: 
+		{title: titleC,
+			link: linkC,
+			description: descriptionC,
+			item: items
+	 	}
+	};
+
+	return feed;
+}
+
+
+export async function scrapeFeeds(){
+	const [nextFeed] = await getNextFeedToFetch();
+	const feed = await fetchFeed(nextFeed.url);
+	feed.channel.item.forEach((item)=>{
+		console.log(`* ${item.title}`)
+	});
+	await markFeedFetched(nextFeed.id);
+	
+
+}
+
+
 
 
 export async function handlerUsers(cmdName: string, ...args: string[]) {
@@ -80,54 +196,6 @@ export async function handlerReset(cmdName: string, ...args: string[]) {
 
 
 
-async function fetchFeed(feedURL: string) {
-	const response = await fetch(feedURL, {
-		method: "GET",
-		mode: "cors",
-		headers: {
-			"Accept": "application/xml",
-			"User-Agent": "gator_gp" 
-		}
-	});
-
-	const respTxt = await response.text();
-	const parser = new XMLParser({processEntities: false});
-	const jsonObj = parser.parse(respTxt);
-	let titleC, linkC, descriptionC = "";
-	let items:RSSItem[] = [];
-
-	if (jsonObj.rss.channel) {
-		titleC = jsonObj.rss.channel.title;
-		linkC = jsonObj.rss.channel.link;
-		descriptionC = jsonObj.rss.channel.description;
-		
-		if (jsonObj.rss.channel.item){
-			if (Array.isArray(jsonObj.rss.channel.item)){
-				jsonObj.rss.channel.item.forEach((item : RSSItem & {guid: string;}) => {
-					if (item.title && item.link && item.description && item.pubDate) {
-						const {guid, ...rest} = item;
-						items.push(rest)
-					}
-				})
-			} else {
-				items = jsonObj.rss.channel.item;
-			}
-		}
-
-	} else {
-		throw new Error(`No channel in jsonObj`)
-	}
-
-	const feed: RSSFeed = {channel: 
-		{title: titleC,
-			link: linkC,
-			description: descriptionC,
-			item: items
-	 	}
-	};
-
-	return feed;
-}
 
 
 
