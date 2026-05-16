@@ -36,12 +36,16 @@ export async function handlerAggregator(cmdName: string, ...args: string[]) {
 
 
 function parseDuration(durationStr: string)  {
-	const regex = /^([1-9]\d+)(ms|s|m|h)$/;
+	const regex = /^(\d+)(ms|s|m|h)$/;
 	const match = durationStr.match(regex);
+	console.log(match)
 	if (!match){
 		throw new Error(`valid time not provided,\n Valid Time- ms, s, m, h`)
 	}
 	const time = match[1];
+	if (time ===  "0") {
+		throw new Error(`time between 1-9`)
+	}
 	const unit = match[2];
 
 	switch(unit) {
@@ -123,13 +127,14 @@ async function fetchFeed(feedURL: string) {
 
 export async function scrapeFeeds(){
 	const [nextFeed] = await getNextFeedToFetch();
+	if (!nextFeed) {
+		throw new Error(`No feeds to fetch`);
+	}
 	const feed = await fetchFeed(nextFeed.url);
 	feed.channel.item.forEach((item)=>{
 		console.log(`* ${item.title}`)
 	});
 	await markFeedFetched(nextFeed.id);
-	
-
 }
 
 
