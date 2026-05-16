@@ -36,7 +36,7 @@ export async function handlerAggregator(cmdName: string, ...args: string[]) {
 
 
 function parseDuration(durationStr: string)  {
-	const regex = /^(\d+)(ms|s|m|h)$/;
+	const regex = /^([1-9]\d+)(ms|s|m|h)$/;
 	const match = durationStr.match(regex);
 	if (!match){
 		throw new Error(`valid time not provided,\n Valid Time- ms, s, m, h`)
@@ -85,21 +85,23 @@ async function fetchFeed(feedURL: string) {
 	let titleC, linkC, descriptionC = "";
 	let items:RSSItem[] = [];
 
-	if (jsonObj.rss.channel) {
-		titleC = jsonObj.rss.channel.title;
-		linkC = jsonObj.rss.channel.link;
-		descriptionC = jsonObj.rss.channel.description;
+	const channel =  jsonObj?.rss?.channel;
+
+	if (channel) {
+		titleC = channel.title;
+		linkC = channel.link;
+		descriptionC = channel.description;
 		
-		if (jsonObj.rss.channel.item){
-			if (Array.isArray(jsonObj.rss.channel.item)){
-				jsonObj.rss.channel.item.forEach((item : RSSItem & {guid: string;}) => {
+		if (channel.item){
+			if (Array.isArray(channel.item)){
+				channel.item.forEach((item : RSSItem & {guid: string;}) => {
 					if (item.title && item.link && item.description && item.pubDate) {
 						const {guid, ...rest} = item;
 						items.push(rest)
 					}
 				})
 			} else {
-				items = jsonObj.rss.channel.item;
+				items = channel.item;
 			}
 		}
 
