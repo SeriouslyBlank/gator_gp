@@ -1,6 +1,7 @@
+import { timestamp } from "drizzle-orm/gel-core";
 import { db } from "..";
 import { feeds, users} from "../schema";
-import { eq, lt, gte, ne } from 'drizzle-orm';
+import { eq, lt, gte, ne, sql, asc } from 'drizzle-orm';
 
 
 
@@ -24,3 +25,14 @@ export async function selectFeeds(url?:string){
 	}
 	
 } 
+
+export async function markFeedFetched(feed_id: string) {
+	const result = await db.update(feeds).set({last_fetched_at: sql`now()`, updatedAt:  sql`now()`}).where(eq(feeds.id,feed_id)).returning();
+	return result;
+}
+
+
+export async function getNextFeedToFetch() {
+	const result = await db.select().from(feeds).orderBy(sql`last_fetched ASC NULLS FIRST`).limit(1);
+	return result;
+}

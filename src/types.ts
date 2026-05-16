@@ -23,6 +23,8 @@ export type RSSItem = {
 };
 
 
+export type Unit = "s" | "d" | "ms"  | "m" | "h";
+
 export type Feed = typeof feeds.$inferSelect;
 
 export type User = typeof users.$inferSelect;
