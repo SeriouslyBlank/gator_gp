@@ -1,4 +1,3 @@
-import { timestamp } from "drizzle-orm/gel-core";
 import { db } from "..";
 import { feeds, users} from "../schema";
 import { eq, lt, gte, ne, sql, asc } from 'drizzle-orm';
