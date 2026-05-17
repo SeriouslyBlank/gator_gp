@@ -1,3 +1,4 @@
+import { Feed } from "src/types";
 import { db } from "..";
 import { feeds, users} from "../schema";
 import { eq, lt, gte, ne, sql, asc } from 'drizzle-orm';
@@ -14,16 +15,14 @@ export async function createFeed(name: string, user: {id: string, createdAt:Date
 }
 
 
-export async function selectFeeds(url?:string){
-	if (url) {
-		const result = await db.select().from(feeds).where(eq(feeds.url, url));
-		return result;
-	} else {
-		const result = await db.select().from(feeds).innerJoin(users, eq(users.id, feeds.user_id));
-		return result;
-	}
-	
-} 
+export async function selectFeeds(){
+	const result = await db.select().from(feeds).innerJoin(users, eq(users.id, feeds.user_id));
+	return result;
+}
+
+
+
+
 
 export async function markFeedFetched(feed_id: string) {
 	const result = await db.update(feeds).set({last_fetched_at: sql`now()`, updatedAt:  sql`now()`}).where(eq(feeds.id,feed_id)).returning();
@@ -33,5 +32,17 @@ export async function markFeedFetched(feed_id: string) {
 
 export async function getNextFeedToFetch() {
 	const result = await db.select().from(feeds).orderBy(sql`last_fetched ASC NULLS FIRST`).limit(1);
+	return result;
+}
+
+
+export async function selectFeedsName(name:string){
+	const result = await db.select().from(feeds).where(eq(feeds.name, name));
+	return result;
+}
+
+
+export async function selectFeedsUrl(url:string){
+	const result = await db.select().from(feeds).where(eq(feeds.url, url));
 	return result;
 }

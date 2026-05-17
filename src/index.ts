@@ -1,5 +1,5 @@
 import { runCommand, registerCommand} from "./config";
-import { handlerAggregator, handlerLogin, handlerRegister, handlerReset, handlerUsers, handlerFeed, handlerfeeds, handlerFollow, handlerFollowing, handlerUnFollowing } from "./commands";
+import { handlerAggregator, handlerLogin, handlerRegister, handlerReset, handlerUsers, handlerFeed, handlerfeeds, handlerFollow, handlerFollowing, handlerUnFollowing, handlerPostsForUser } from "./commands";
 import type { CommandsRegistry } from "./types";
 import process from "node:process"
 import { middlewareLoggedIn } from "./middleware";
@@ -23,6 +23,7 @@ async function main() {
     await registerCommand(commandsRegistry, "follow", middlewareLoggedIn(handlerFollow));
     await registerCommand(commandsRegistry, "following", middlewareLoggedIn(handlerFollowing));
     await registerCommand(commandsRegistry, "unfollow", middlewareLoggedIn(handlerUnFollowing));
+    await registerCommand(commandsRegistry, "browse", middlewareLoggedIn(handlerPostsForUser));
 
 
 

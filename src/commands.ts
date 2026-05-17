@@ -2,9 +2,10 @@ import { createUser, getUser, resetDb, getUsers } from "./lib/db/queries/users";
 import {XMLParser} from "fast-xml-parser";
 import { readConfig, setUser } from "./config"; 
 import type {Feed, RSSFeed, RSSItem, User} from "./types";
-import { createFeed, getNextFeedToFetch, markFeedFetched, selectFeeds } from "./lib/db/queries/feeds";
-import { feedFollowingForUser, feedUnfollow, insertFeedFollow } from "./lib/db/queries/feed_follows";
+import { createFeed, getNextFeedToFetch, markFeedFetched, selectFeeds, selectFeedsName, selectFeedsUrl } from "./lib/db/queries/feeds";
+import { feedFollowingForUser, feedUnfollow, getFeedFollows, insertFeedFollow } from "./lib/db/queries/feed_follows";
 import process from "node:process";
+import { createPost, getPostsForUser } from "./lib/db/queries/posts";
 
 
 
@@ -38,7 +39,6 @@ export async function handlerAggregator(cmdName: string, ...args: string[]) {
 function parseDuration(durationStr: string)  {
 	const regex = /^(\d+)(ms|s|m|h)$/;
 	const match = durationStr.match(regex);
-	console.log(match)
 	if (!match){
 		throw new Error(`valid time not provided,\n Valid Time- ms, s, m, h`)
 	}
@@ -130,11 +130,51 @@ export async function scrapeFeeds(){
 	if (!nextFeed) {
 		throw new Error(`No feeds to fetch`);
 	}
+
 	const feed = await fetchFeed(nextFeed.url);
+	const itemArr =  feed.channel.item
+
+	itemArr.forEach((item)=>{
+		createPost(item, nextFeed.id)
+	})
+
 	feed.channel.item.forEach((item)=>{
 		console.log(`* ${item.title}`)
 	});
 	await markFeedFetched(nextFeed.id);
+}
+
+
+
+export async function handlerPostsForUser(cmdName:string, user: {id: string, createdAt:Date, updatedAt: Date, name: string},... args: string[]){
+	if (!args[0] || args[0].length===0){
+		throw new Error(`Specify the feed you want to browse  \n Command usage:- browse  <feed-name> \n 	OR \n Command usage:- browse <feed-url>`)
+	}
+
+	const limit = Number(args[1] || 2);
+	if (args[0].startsWith("https://")){
+		const feed =  await selectFeedsUrl(args[0])
+		if (!feed[0]){
+			throw new Error(`Feed doesn't exist in feeds table, add feed first using addfeed <feed-name> <feed-url>`)
+		}
+
+		const posts = await getPostsForUser(feed[0].id, limit)
+		posts.forEach((item)=>{
+			console.log(item.title)
+		});
+
+	} else {
+		const feed  =  await selectFeedsName(args[0])
+		if (!feed[0]){
+			throw new Error(`Feed doesn't exist in feeds table, add feed first using addfeed <feed-name> <feed-url>`)
+		}
+
+		const posts = await getPostsForUser(feed[0].id, limit)
+		posts.forEach((item)=>{
+			console.log(item.title)
+		});
+
+	}
 }
 
 
@@ -233,8 +273,7 @@ export async function handlerfeeds(cmdName: string, ...args: string[]){
 	if (result.length === 0) {
 		console.log(`No entries in feeds table`)
 	} else {
-		//since the sql function was modified the return type can be different depending on whether the url was provided or not, data will be of the {users, feeds} so just gonnna any to ignore lsp
-		result.forEach((item:any)=>{
+		result.forEach((item)=>{
 			const {users, feeds} = item;
 			printFeed(feeds, users);
 		});
@@ -259,14 +298,11 @@ export async function handlerFollow(cmdName: string, user: {id: string, createdA
 	if (!args[0] || args[0].length ===0) {
 		throw new Error(`url not provided \n Command Usage:- follow <feed-url>`)
 	}
-	const [feeds] = await selectFeeds(args[0]);
+	const [feeds] = await selectFeedsUrl(args[0]);
 	if (!feeds) {
 		throw new Error(`Feed not in Feeds table, use command addFeed to add \n addFeed auto adds the feed to follow feed as welll`)
 	} else {
-		// since feeds can be a joined result or just the feeds
-		if (!("users" in feeds)){
-			await createFeedFollow(user.id, feeds.id);
-		}
+		await createFeedFollow(user.id, feeds.id);
 	}
 }
 
@@ -287,8 +323,8 @@ export async function handlerUnFollowing(cmdName: string, user: {id: string, cre
 	if (!args[0] || args[0].length === 0) {
 		throw new Error(`No feed url provided \n Command usage:- following <feed-url>`)
 	}
-	const [feeds] =await selectFeeds(args[0]);
-	if (!feeds || "users" in feeds){
+	const [feeds] =await selectFeedsUrl(args[0]);
+	if (!feeds){
 		throw new Error(`Incorrect feed-url \n Check using the command feeds`)
 	}
 	const [result] = await feedUnfollow(feeds.id, user.id);
