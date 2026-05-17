@@ -18,6 +18,7 @@ export async function registerCommand(registry: CommandsRegistry, cmdName: strin
 
 export async function runCommand(registry: CommandsRegistry, cmdName: string, ...args: string[]){
 	const handler = registry[cmdName];
+	
 	await handler(cmdName, ...args);
 }
 
